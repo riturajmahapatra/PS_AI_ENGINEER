@@ -12,4 +12,13 @@ Two invariants:
 
   2. Every step is resumable. State lives in the store, not in Python
      locals, so a paused or crashed run can be picked back up.
+
+Built on LangGraph: the YAML is compiled into a StateGraph at load time, so
+`interrupt()` gives us human gates and the SQLite checkpointer gives us
+pause/resume and crash recovery without hand-rolling either.
+
+------------------------------------------------------------------
+TERRITORY   Generation & Control          OWNER      Role 1
+LAYER       engine / Python               REVIEWER   Role 2
+------------------------------------------------------------------
 """

@@ -15,4 +15,14 @@ see docs/02-generation-vs-acceptance.md.
 Agents also own the clarification path: when an objective is ambiguous or
 self-contradictory, an agent returns a structured ClarificationRequest
 instead of guessing, and the run halts at a human gate.
+
+Criteria, Planning, and the advisory judge call the Messages API directly via
+`client.messages.parse(output_format=SomePydanticModel)`, so their output is
+schema-valid by construction rather than by parsing prose. Execution goes
+through a runner instead -- see runners/.
+
+------------------------------------------------------------------
+TERRITORY   Generation & Control          OWNER      Role 1
+LAYER       engine / Python               REVIEWER   Role 2
+------------------------------------------------------------------
 """

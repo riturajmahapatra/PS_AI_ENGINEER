@@ -16,4 +16,13 @@ hash and a re-run is provably not a re-roll.
 Each check returns structured evidence, not just a boolean. "pytest exited
 1" is useless to the planner; the failing test name, the assertion, and the
 traceback are what make the next attempt smarter than the last one.
+
+------------------------------------------------------------------
+TERRITORY   Acceptance & Evidence         OWNER      Role 2
+LAYER       engine / Python               REVIEWER   Role 1
+------------------------------------------------------------------
+No LLM client may be imported here, directly or transitively. Enforced by
+engine/tests/test_acceptance_is_deterministic.py. If you need a model to
+decide something, it does not belong in this package.
+------------------------------------------------------------------
 """

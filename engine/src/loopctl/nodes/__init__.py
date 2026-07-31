@@ -12,4 +12,9 @@
 Every node implements the same contract: given a RunContext, return a
 NodeOutcome carrying a status, a payload, and its cost. Adding a node type
 means adding a file here and registering it -- nothing in graph/ changes.
+
+------------------------------------------------------------------
+TERRITORY   Generation & Control          OWNER      Role 1
+LAYER       engine / Python               REVIEWER   Role 2
+------------------------------------------------------------------
 """
