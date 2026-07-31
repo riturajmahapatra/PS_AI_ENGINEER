@@ -1,0 +1,186 @@
+# The default four-agent loop, as config.
+#
+# This file is the contract between every part of the system. The canvas
+# exports it, the engine imports and runs it, and it round-trips without loss.
+# When you are unsure what a schema needs to hold, look here.
+#
+# Nothing in the flow below is hardcoded in the executor -- every transition is
+# an edge you can rewire on the canvas.
+
+apiVersion: loopctl/v1
+kind: Workflow
+
+metadata:
+  name: default-four-agent-loop
+  version: 1
+  description: >
+    Objective in, verified diff out. Deterministic checks accept; models never do.
+
+spec:
+  target:
+    repo: ./examples/target-repo
+    base_ref: main
+    isolation: git-worktree          # git-worktree | container
+
+  budget:
+    max_attempts: 4
+    max_wall_clock_minutes: 45
+    max_usd: 5.00
+    on_exhaustion: stop_safely       # rollback + honest report. never "deliver anyway"
+
+  defaults:
+    provider: anthropic
+    model: claude-sonnet-5
+
+  nodes:
+    - id: objective
+      type: input
+      name: Engineering objective
+      config:
+        objective: |
+          Raise test coverage on src/client.py to at least 85%.
+        constraints:
+          - Do not modify src/client.py itself; add tests only.
+          - Public API must remain unchanged.
+          - Existing tests must continue to pass.
+
+    - id: criteria
+      type: agent
+      role: success_criteria
+      name: Success Criteria Agent
+      config:
+        mode: hybrid                 # user_defined | agent_generated | hybrid
+        model: claude-opus-5
+        tools: [read_file, search, list_dir]     # note: no write, no shell
+        may_request_clarification: true
+        instructions: |
+          Read the repository before proposing anything.
+          Every criterion must name how it is measured by an executable command.
+          If the objective and its constraints contradict each other, do not
+          choose between them -- emit a ClarificationRequest naming both.
+
+    - id: confirm_contract
+      type: human_gate
+      name: Confirm the contract
+      config:
+        prompt: Review, edit, and prioritise the success criteria before execution.
+        editable: [criteria]
+        timeout_minutes: 60
+        on_timeout: stop
+
+    - id: plan
+      type: agent
+      role: planning
+      name: Planning Agent
+      config:
+        model: claude-opus-5
+        tools: [read_file, search, list_dir]     # planner cannot write. enforced.
+        receives_failure_evidence: true          # <- this is what makes it a loop
+        instructions: |
+          Name real files and real line ranges. Reference existing patterns in
+          the repository to follow. State what could go wrong.
+          On a retry you will be given the previous attempt's check evidence.
+          Address the specific failure; do not restate the original plan.
+
+    - id: implement
+      type: agent
+      role: execution
+      name: Execution Agent
+      config:
+        runner: claude_code          # claude_code | cursor | aider | fake
+        model: claude-sonnet-5
+        tools: [read_file, write_file, edit_file, search, shell]
+        timeout_minutes: 20
+
+    - id: verify
+      type: validator
+      name: Validation
+      config:
+        criteria_from: criteria
+        checks:
+          - id: build
+            type: command
+            run: uv sync --frozen
+            blocking: true
+
+          - id: tests
+            type: pytest
+            run: uv run pytest -q
+            blocking: true
+
+          - id: lint
+            type: command
+            run: uv run ruff check .
+            blocking: true
+
+          - id: types
+            type: command
+            run: uv run mypy src
+            blocking: true
+
+          - id: coverage
+            type: coverage
+            run: uv run pytest --cov=src --cov-report=json
+            min_percent: 85
+            blocking: true
+
+          - id: protected_files
+            type: files
+            must_not_change: [src/client.py, pyproject.toml]
+            blocking: true
+
+          - id: api_compat
+            type: api_compat
+            public_surface: src/client.py
+            blocking: true
+
+          # Advisory only. Rubric-backed, structured output, cannot fail the run.
+          # Setting blocking: true here stamps the run `llm_gated` in the ledger.
+          - id: readability
+            type: llm_judge
+            rubric: docs/rubrics/readability.md
+            model: claude-opus-5
+            blocking: false
+
+    - id: decide
+      type: decision
+      name: Pass, retry, or stop
+      config:
+        on: verify.status
+
+    - id: human_approval
+      type: human_gate
+      name: Approve delivery
+      config:
+        prompt: Approve the diff for delivery.
+        show_diff: true
+
+    - id: delivered
+      type: success
+      config:
+        keep_branch: true
+        report: report.md
+
+    - id: halted
+      type: stop
+      name: Stopped safely
+      config:
+        rollback: true               # worktree removed, base repo left green
+        report: report.md
+        report_outcome: undelivered  # honest. never dressed up as partial success.
+
+  edges:
+    - {from: objective,        to: criteria}
+    - {from: criteria,         to: confirm_contract, on: success}
+    - {from: criteria,         to: halted,           on: clarification}
+    - {from: confirm_contract, to: plan,             on: approved}
+    - {from: confirm_contract, to: halted,           on: rejected}
+    - {from: plan,             to: implement,        on: success}
+    - {from: implement,        to: verify,           on: success}
+    - {from: implement,        to: decide,           on: failure}
+    - {from: verify,           to: decide}
+    - {from: decide,           to: human_approval,   when: "verify.passed"}
+    - {from: decide,           to: plan,             when: "!verify.passed && attempts_remaining"}
+    - {from: decide,           to: halted,           when: "!verify.passed && !attempts_remaining"}
+    - {from: human_approval,   to: delivered,        on: approved}
+    - {from: human_approval,   to: halted,           on: rejected}
