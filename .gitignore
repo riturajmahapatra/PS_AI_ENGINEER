@@ -1,21 +1,34 @@
-# Environment variables
+# Environment variables / API keys
 .env
 .env.local
 .env.*.local
 
-# Logs
-logs/*
-!logs/.gitkeep
+# Run outputs: worktrees, ledgers, transcripts, reports.
+# These are evidence, not source. Never commit them.
+.artifacts/
 *.log
+
+# The demo target repo is its own git repo; keep its history out of ours.
+examples/target-repo/.git/
 
 # Dependencies
 node_modules/
 __pycache__/
 *.pyc
-venv/
 .venv/
+venv/
+.uv/
 
-# OS / Editor files
+# Test and type-check caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.json
+htmlcov/
+
+# OS / editor / local tool settings
+.claude/settings.local.json
 .DS_Store
 Thumbs.db
 .vscode/
@@ -24,3 +37,4 @@ Thumbs.db
 # Build outputs
 dist/
 build/
+*.egg-info/
