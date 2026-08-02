@@ -51,12 +51,44 @@ uv pip install --python .venv-test/Scripts/python.exe -r requirements.txt
 rm -rf .venv-test  # it was only a probe
 ```
 
-On this project, that test passed cleanly on 3.14 — LangGraph 1.2.10, current
-`anthropic`, `claude-agent-sdk`, and everything else installed and imported
-with no source builds — so `engine/pyproject.toml`'s `requires-python` and
-`engine/.venv` are pinned to 3.14 here. If your machine can run a uv-managed
-3.12, you're free to use that instead; nothing in the code depends on the
-specific 3.1x/3.14 choice, only on the dependency set actually working.
+That test passed cleanly on 3.14 — LangGraph 1.2.10, current `anthropic`,
+`claude-agent-sdk`, and everything else installed and imported with no source
+builds — so the root `pyproject.toml`'s `requires-python` and the root
+`.venv` are pinned to 3.14. If your machine can run a uv-managed 3.12, you're
+free to use that instead; nothing in the code depends on the specific
+3.1x/3.14 choice, only on the dependency set actually working. Verify with
+the same throwaway-venv probe above before you commit to it, though —
+"newer usually means fine" is exactly the assumption this section exists to
+discourage.
+
+### One venv, one `pyproject.toml`, one `requirements.txt` — at the repo root
+
+Python tooling is **not** scoped per-subfolder. There is one `pyproject.toml`,
+one `uv.lock`, one `requirements.txt`, and one `.venv` — all at the repo
+root — covering every Python package in the project, however many
+subdirectories they're split across. The actual `loopctl` code still lives
+under `engine/src/loopctl/`; only the tooling that manages it sits at the
+root, via `[tool.hatch.build.targets.wheel] packages = ["engine/src/loopctl"]`.
+
+Two things this deliberately does **not** do:
+
+- **It does not fold in the old flat scaffold** (`agents/`, `api/`, `db/`,
+  `runner/`, `validator/` at the repo root — leftover from before the package
+  layout existed). Those files aren't referenced anywhere in `pyproject.toml`,
+  so the venv doesn't install them and doesn't know they exist. That
+  duplication is still the open decision flagged in earlier PRs — resolving
+  it is a bigger, more disruptive move than unifying where the tooling
+  *lives*, and it touches files across both of you, so it stays a team call
+  rather than something folded in here silently.
+- **It does not, and cannot, cover `web/`.** A Python virtual environment and
+  Node's `node_modules` are different ecosystems — there is no such thing as
+  a venv containing npm packages. "Unify the Python tooling" means exactly
+  that: Python. The frontend gets its own `npm install` in `web/`, starting
+  at M2, with no overlap.
+
+Run everything — `uv sync`, `pytest`, `ruff`, `mypy` — from the repo root,
+not from inside `engine/`. The paths in `pyproject.toml`
+(`engine/src`, `engine/tests`) are already written relative to the root.
 
 ### The type chain — set this up at M0 and never think about it again
 
