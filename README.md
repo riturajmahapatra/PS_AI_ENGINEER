@@ -86,13 +86,22 @@ below as a description of what exists, not as a decision.
 
 ### Package layout
 
+Python tooling is unified at the **repo root** — one `pyproject.toml`, one
+`.venv`, one `requirements.txt` for all Python code, regardless of which
+subfolder it lives in. The actual `loopctl` package still lives under
+`engine/src/loopctl/`; only the tooling that manages it moved up:
+
 ```
-engine/                  Python: the loop engine and its API
-  pyproject.toml         uv-managed, Python 3.12
+pyproject.toml           uv-managed, Python 3.14, covers the whole Python project
+uv.lock                  exact resolved versions — commit this
+requirements.txt         generated export of uv.lock, for plain pip
+.venv/                   the one virtual environment — gitignored
+
+engine/
   src/loopctl/
     api/                 FastAPI REST + WebSocket for the canvas
     graph/               workflow graph model and executor (LangGraph)
-    nodes/               the eight node types
+    nodes/                the eight node types
     agents/              the four LLM roles           [LLM allowed]
     runners/             coding-agent harness adapters [LLM allowed]
     checks/              deterministic acceptance      [LLM FORBIDDEN]
@@ -102,7 +111,8 @@ engine/                  Python: the loop engine and its API
     store/               persistence
   tests/                 tests for loopctl itself
 
-web/                     React + React Flow node canvas
+web/                     React + React Flow node canvas — its own npm/node_modules,
+                         entirely separate from the Python venv above; no overlap
 examples/
   workflows/             exported workflow YAML (config as code)
   target-repo/           the repository the loop operates on for the demo
@@ -114,6 +124,11 @@ docs/                    design and learning documentation
 
 Each package's `__init__.py` carries a docstring explaining that package's job,
 its constraints, and its owner. Read it before writing into a package.
+
+**One venv cannot cover `web/`.** A Python virtual environment and Node's
+`node_modules` are different ecosystems — "unify the Python tooling" means
+exactly that, Python. The frontend still gets its own `npm install` in `web/`
+once M2 starts; there's no way to fold that into `.venv`.
 
 ## Stack
 
@@ -130,38 +145,38 @@ each cost an afternoon if you don't know them: [docs/05](docs/05-tech-stack-and-
 
 ## Prerequisites
 
+Run everything from the **repo root** — the venv is project-wide, not
+per-subfolder:
+
 ```bash
-cd engine
-uv python install 3.12 && uv venv --python 3.12 .venv
+uv python install 3.14 && uv venv --python 3.14 .venv
 uv sync --all-groups
 ```
 
-Try 3.12 first — it's what the project targets. **If `uv python install 3.12`
-or `uv venv --python 3.12` fails with an "Application Control" / "os error
-4551" style message**, a Windows security policy on that machine is blocking
-uv's own downloaded interpreters (this happened during development; both
-uv-managed 3.12 and a pre-existing uv-managed 3.11 were blocked, while the
-officially-installed system 3.14 was not). Don't try to work around that
-policy — fall back to the trusted interpreter instead:
+**If that fails** with an "Application Control" / "os error 4551" style
+message, a Windows security policy on that machine is blocking uv's own
+downloaded interpreters (this happened during development — both a
+freshly-downloaded uv-managed interpreter and a pre-existing one were
+blocked, while the officially-installed system Python was not). Don't try
+to work around that policy — point uv at the trusted interpreter instead:
 
 ```bash
-cd engine
 uv venv --python "<path to your system python.exe>" .venv
 uv sync --all-groups
 ```
 
-Then check `requires-python` in `engine/pyproject.toml` matches the Python you
-actually used, and re-run `uv sync --all-groups` to regenerate `uv.lock` for
-that version if it doesn't. Verify before trusting it — don't assume a newer
-Python "probably" has wheels for everything:
+Then check `requires-python` in `pyproject.toml` (root) matches the Python
+you actually used, and re-run `uv sync --all-groups` to regenerate `uv.lock`
+if it doesn't. Verify before trusting it — don't assume a given Python
+version "probably" has wheels for everything:
 
 ```bash
-uv sync --all-groups && .venv/Scripts/python.exe -c "import langgraph, anthropic, claude_agent_sdk, fastapi; print('imports OK')"
+uv sync --all-groups && .venv/Scripts/python.exe -c "import langgraph, anthropic, claude_agent_sdk, fastapi, loopctl; print('imports OK')"
 ```
 
-No `uv`? `pip install -r engine/requirements.txt` into your own venv works too
-— that file is generated from `uv.lock`, so it's exact versions, not floors.
-See the comment at the top of `requirements.txt` for how to regenerate it.
+No `uv`? `pip install -r requirements.txt` into your own venv works too — that
+file is generated from `uv.lock`, so it's exact versions, not floors. See the
+comment at the top of `requirements.txt` for the exact regenerate command.
 
 Also required: **Node.js 20+** (canvas, from M2) and **Docker** (packaging, M7).
 Neither is installed yet.
