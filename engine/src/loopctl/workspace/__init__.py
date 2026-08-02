@@ -8,4 +8,9 @@ found.
 "Leave the workspace green" is not a best-effort promise here -- it is
 structural, because the agent never had write access to the base checkout
 in the first place.
+
+------------------------------------------------------------------
+TERRITORY   Acceptance & Evidence         OWNER      Role 2
+LAYER       engine / Python               REVIEWER   Role 1
+------------------------------------------------------------------
 """
