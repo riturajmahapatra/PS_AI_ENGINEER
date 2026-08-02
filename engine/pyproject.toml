@@ -4,11 +4,15 @@ version = "0.1.0"
 description = "A control plane for long-running AI coding work"
 readme = "../README.md"
 
-# 3.12, deliberately. The machine has 3.14 installed, but LangGraph and much of
-# the surrounding ecosystem do not ship wheels for it yet -- building those C
-# extensions from source is a day you do not have. `uv python install 3.12`
-# fetches its own interpreter and leaves your system Python alone.
-requires-python = ">=3.12,<3.13"
+# 3.14, not 3.12 -- reversed from the original plan on 2026-08-02. uv's own
+# managed interpreters (3.12, and a pre-existing 3.11) are blocked on this
+# machine by Windows Application Control; only the officially-installed system
+# 3.14 executes. Before pinning to it we verified the full dependency set
+# (LangGraph, anthropic, claude-agent-sdk, FastAPI, ...) actually installs and
+# imports on 3.14 -- it does, cleanly, no source builds. If your machine can
+# run a uv-managed 3.12 (`uv python install 3.12` succeeds), you may prefer
+# that instead; nothing in the code depends on the specific 3.1x/3.14 choice.
+requires-python = ">=3.14,<3.15"
 
 # Version floors are intentionally absent: run `uv add <pkg>` for each of these
 # so uv resolves and pins current versions into uv.lock. Commit the lockfile --
@@ -54,7 +58,7 @@ src = ["src", "tests"]
 select = ["E", "F", "I", "UP", "B", "SIM", "TID"]
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.14"
 strict = true
 files = ["src", "tests"]
 

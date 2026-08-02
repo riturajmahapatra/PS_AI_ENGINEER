@@ -24,17 +24,39 @@ the ownership split only makes sense once you know what the pieces are.
 | Type bridge | **openapi-typescript** | Generates TS types from FastAPI's OpenAPI. Change a Pydantic model, the frontend stops compiling. |
 | Packaging | **Docker Compose** | `docker compose up` → engine + web. One command for the demo. |
 
-### ⚠️ Do not build on Python 3.14
+### Python version: prefer 3.12, verify before falling back
 
-You have 3.14.6 installed. LangGraph, LangChain, and much of the scientific
-stack won't have wheels for it yet — you will spend a day fighting C
-extensions that have nothing to do with this project. Pin 3.12:
+The original advice here was blanket "never build on 3.14" — too strong.
+What actually matters: **whichever interpreter you use, verify the real
+dependency set installs and imports on it before trusting it.** Don't assume
+either direction from vibes.
+
+Prefer 3.12 — pull it with `uv python install 3.12 && uv venv --python 3.12`,
+which fetches its own interpreter and leaves your system Python alone.
+
+**If that fails** with something like `Application Control policy has blocked
+this file` / `os error 4551`: this happened during development on Windows —
+a system security policy blocked *every* uv-managed interpreter (a fresh 3.12
+download and a pre-existing 3.11 alike), while the officially-installed system
+3.14 executed fine. That's a machine-level security setting, not a `uv`
+problem, and not something to work around — treat it as a hard constraint and
+fall back to whatever interpreter on your machine *is* trusted.
+
+Before committing to a fallback version, actually test it — don't guess:
 
 ```bash
-uv python install 3.12 && uv venv --python 3.12
+uv venv --python "<path to the trusted interpreter>" .venv-test
+uv pip install --python .venv-test/Scripts/python.exe -r requirements.txt
+.venv-test/Scripts/python.exe -c "import langgraph, anthropic, claude_agent_sdk, fastapi; print('ok')"
+rm -rf .venv-test  # it was only a probe
 ```
 
-`uv` manages the interpreter, so this doesn't touch your system Python.
+On this project, that test passed cleanly on 3.14 — LangGraph 1.2.10, current
+`anthropic`, `claude-agent-sdk`, and everything else installed and imported
+with no source builds — so `engine/pyproject.toml`'s `requires-python` and
+`engine/.venv` are pinned to 3.14 here. If your machine can run a uv-managed
+3.12, you're free to use that instead; nothing in the code depends on the
+specific 3.1x/3.14 choice, only on the dependency set actually working.
 
 ### The type chain — set this up at M0 and never think about it again
 

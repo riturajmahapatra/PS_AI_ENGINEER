@@ -131,12 +131,37 @@ each cost an afternoon if you don't know them: [docs/05](docs/05-tech-stack-and-
 ## Prerequisites
 
 ```bash
-uv python install 3.12 && uv venv --python 3.12
+cd engine
+uv python install 3.12 && uv venv --python 3.12 .venv
+uv sync --all-groups
 ```
 
-**Use 3.12, not the 3.14 on this machine.** LangGraph and much of the surrounding
-ecosystem have no 3.14 wheels yet; `uv` fetches its own interpreter and leaves
-your system Python untouched.
+Try 3.12 first — it's what the project targets. **If `uv python install 3.12`
+or `uv venv --python 3.12` fails with an "Application Control" / "os error
+4551" style message**, a Windows security policy on that machine is blocking
+uv's own downloaded interpreters (this happened during development; both
+uv-managed 3.12 and a pre-existing uv-managed 3.11 were blocked, while the
+officially-installed system 3.14 was not). Don't try to work around that
+policy — fall back to the trusted interpreter instead:
+
+```bash
+cd engine
+uv venv --python "<path to your system python.exe>" .venv
+uv sync --all-groups
+```
+
+Then check `requires-python` in `engine/pyproject.toml` matches the Python you
+actually used, and re-run `uv sync --all-groups` to regenerate `uv.lock` for
+that version if it doesn't. Verify before trusting it — don't assume a newer
+Python "probably" has wheels for everything:
+
+```bash
+uv sync --all-groups && .venv/Scripts/python.exe -c "import langgraph, anthropic, claude_agent_sdk, fastapi; print('imports OK')"
+```
+
+No `uv`? `pip install -r engine/requirements.txt` into your own venv works too
+— that file is generated from `uv.lock`, so it's exact versions, not floors.
+See the comment at the top of `requirements.txt` for how to regenerate it.
 
 Also required: **Node.js 20+** (canvas, from M2) and **Docker** (packaging, M7).
 Neither is installed yet.
