@@ -2,6 +2,7 @@
 
 from .shell import ShellRunner
 
+
 class GitRunner:
     def __init__(self, repo_path: str = "."):
         self.shell = ShellRunner()

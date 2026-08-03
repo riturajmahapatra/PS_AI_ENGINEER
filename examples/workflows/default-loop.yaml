@@ -146,7 +146,7 @@ spec:
       type: decision
       name: Pass, retry, or stop
       config:
-        on: verify.status
+        "on": verify.status
 
     - id: human_approval
       type: human_gate
@@ -169,18 +169,25 @@ spec:
         report: report.md
         report_outcome: undelivered  # honest. never dressed up as partial success.
 
+  # NOTE: the "on" key is always quoted below ("on": not on:). Unquoted, YAML
+  # 1.1's bareword-boolean rules (y/n/yes/no/true/false/on/off) silently parse
+  # it as the boolean True instead of the string "on" -- every edge here would
+  # lose its condition with no error, no warning, just a graph that silently
+  # always takes the unconditional path. Caught by
+  # engine/tests/test_default_workflow_parses.py; see that file before you
+  # ever add a bare `on:` back to this document.
   edges:
     - {from: objective,        to: criteria}
-    - {from: criteria,         to: confirm_contract, on: success}
-    - {from: criteria,         to: halted,           on: clarification}
-    - {from: confirm_contract, to: plan,             on: approved}
-    - {from: confirm_contract, to: halted,           on: rejected}
-    - {from: plan,             to: implement,        on: success}
-    - {from: implement,        to: verify,           on: success}
-    - {from: implement,        to: decide,           on: failure}
+    - {from: criteria,         to: confirm_contract, "on": success}
+    - {from: criteria,         to: halted,           "on": clarification}
+    - {from: confirm_contract, to: plan,             "on": approved}
+    - {from: confirm_contract, to: halted,           "on": rejected}
+    - {from: plan,             to: implement,        "on": success}
+    - {from: implement,        to: verify,           "on": success}
+    - {from: implement,        to: decide,           "on": failure}
     - {from: verify,           to: decide}
     - {from: decide,           to: human_approval,   when: "verify.passed"}
     - {from: decide,           to: plan,             when: "!verify.passed && attempts_remaining"}
     - {from: decide,           to: halted,           when: "!verify.passed && !attempts_remaining"}
-    - {from: human_approval,   to: delivered,        on: approved}
-    - {from: human_approval,   to: halted,           on: rejected}
+    - {from: human_approval,   to: delivered,        "on": approved}
+    - {from: human_approval,   to: halted,           "on": rejected}
