@@ -188,6 +188,12 @@ full-stack. Every module states its owner in a banner at the bottom of its
 docstring; `schemas/` and `config.py` are jointly owned and frozen by agreement.
 See [docs/05, Part 5](docs/05-tech-stack-and-ownership.md#part-5--ownership--two-tracks-both-full-stack).
 
+## Contributing
+
+Branch, then PR — always, even for small changes. Never push straight to
+`main`. See [CONTRIBUTING.md](CONTRIBUTING.md) for why (three real collisions
+so far) and the exact commands.
+
 ## Status
 
 Scaffolding and design. No implementation yet — see
